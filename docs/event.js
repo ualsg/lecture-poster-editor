@@ -72,5 +72,5 @@ const PosterEvent = (() => {
     return `ual-poster-${calendarDate(date) ? date : 'undated'}-${people || 'speaker'}`;
   }
 
-  return {schedule, migrateSchedule, migrateSpeaker, speakerName, filename};
+  return {formatTime, schedule, migrateSchedule, migrateSpeaker, speakerName, filename};
 })();

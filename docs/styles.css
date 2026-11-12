@@ -15,7 +15,7 @@
 *, *::before, *::after { box-sizing: border-box; }
 body { margin: 0; }
 h1, h2, h3, h4, p { margin: 0; }
-button, input, textarea { font: inherit; }
+button, input, select, textarea { font: inherit; }
 button { cursor: pointer; }
 :focus-visible { outline: 2px solid #438873; outline-offset: 3px; }
 [hidden] { display: none !important; }
@@ -113,7 +113,7 @@ button { cursor: pointer; }
 .field { display: grid; gap: 6px; margin-top: 12px; }
 .field:first-child { margin-top: 0; }
 .field label { font-size: 12px; font-weight: 650; }
-.field input:not([type=file]):not([type=range]), .field textarea {
+.field input:not([type=file]):not([type=range]), .field select, .field textarea {
   width: 100%;
   border-radius: 7px;
   border: 1px solid #d4ddd8;
@@ -123,7 +123,7 @@ button { cursor: pointer; }
   font-size: 13px;
   line-height: 1.42;
 }
-.field input:hover, .field textarea:hover { border-color: #a8bab2; }
+.field input:hover, .field select:hover, .field textarea:hover { border-color: #a8bab2; }
 .field textarea { resize: vertical; min-height: 62px; }
 .field input[type=file] { font-size: 12px; max-width: 100%; }
 .field input::file-selector-button {
@@ -138,7 +138,7 @@ button { cursor: pointer; }
 .control-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 16px; }
 .control-grid .field { margin: 0 0 13px; }
 .schedule-fields { margin-top: 12px; }
-.schedule-fields input { min-width: 0; }
+.schedule-fields input, .schedule-fields select { min-width: 0; }
 .range-field { align-content: start; gap: 5px; }
 .range-heading {
   display: grid;

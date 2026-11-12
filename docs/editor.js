@@ -200,6 +200,25 @@
     parent.append(field(label, input));
   }
 
+  function timePicker(value) {
+    const select = el('select', {id: 'copy-poster-time'});
+    select.dataset.copy = 'time';
+    select.add(new Option('Select a time', ''));
+    for (let hour = 0; hour < 24; hour++) {
+      for (const minute of ['00', '15', '30', '45']) {
+        const time = `${String(hour).padStart(2, '0')}:${minute}`;
+        select.add(new Option(PosterEvent.formatTime(time), time));
+      }
+    }
+    select.value = value;
+    if (select.selectedIndex === -1) {
+      const label = PosterEvent.formatTime(value);
+      if (label) select.add(el('option', {value, hidden: true, disabled: true}, label));
+      select.value = label ? value : '';
+    }
+    return select;
+  }
+
   function renderContent() {
     const draft = current();
     const {content} = draft;
@@ -248,11 +267,9 @@
     if (state.active === '3') copyField(details, 'Agenda', 'lower', content.lower, 5);
     if (state.active !== '1') copyField(details, 'Host line', 'host', content.host);
     const schedule = el('div', {className: 'control-grid schedule-fields'});
-    for (const [key, label] of [['date', 'Date'], ['time', 'Time']]) {
-      const input = el('input', {id: `copy-poster-${key}`, type: key, value: content[key]});
-      input.dataset.copy = key;
-      schedule.append(field(label, input));
-    }
+    const date = el('input', {id: 'copy-poster-date', type: 'date', value: content.date});
+    date.dataset.copy = 'date';
+    schedule.append(field('Date', date), field('Time', timePicker(content.time)));
     details.append(schedule);
     if (content.legacyDate) {
       details.append(el('p', {id: 'legacy-schedule', className: 'layout-help'},
