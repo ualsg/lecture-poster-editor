@@ -6,6 +6,12 @@
     nameSize: ['Speaker name', 20, 240],
     bodySize: ['Other text', 20, 180],
   };
+  const fontSpacing = {
+    titleSpacing: ['Main title', -4, 30],
+    subtitleSpacing: ['Subtitle / talk title', -3, 24],
+    nameSpacing: ['Speaker name', -3, 18],
+    bodySpacing: ['Other text', -3, 12],
+  };
   const spacing = {
     titleGap: ['Title to speaker block', 0, 1000],
     introGap: ['Name to talk / bio', 0, 1000],
@@ -60,7 +66,7 @@
         const draft = fresh(id);
         fillStrings(draft.content, saved.content);
         draft.content.speakers.forEach((speaker, index) => fillStrings(speaker, saved.content?.speakers?.[index]));
-        for (const [key, [, min, max]] of Object.entries({...sizes, ...spacing})) {
+        for (const [key, [, min, max]] of Object.entries({...sizes, ...fontSpacing, ...spacing})) {
           const value = saved.settings?.[key];
           if (Number.isFinite(value) && value >= min && value <= max) draft.settings[key] = value;
         }
@@ -241,10 +247,13 @@
   }
 
   function renderLayout() {
-    for (const [title, definitions] of [['Type size', sizes], ['Vertical spacing', spacing]]) {
+    for (const [title, definitions] of [['Font size', sizes], ['Font spacing', fontSpacing], ['Vertical spacing', spacing]]) {
       const group = section(title);
       const grid = el('div', {className: 'control-grid'});
-      if (title === 'Vertical spacing') {
+      if (definitions === fontSpacing) {
+        group.append(el('p', {className: 'layout-help'}, 'Adjust the space between letters.'));
+      }
+      if (definitions === spacing) {
         group.append(el('p', {className: 'layout-help'}, 'Values use the poster’s 3508 px canvas. Sections move as the text wraps.'));
       }
       for (const [key, [label, min, max]] of Object.entries(definitions)) {
