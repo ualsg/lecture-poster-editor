@@ -6,11 +6,11 @@
     nameSize: ['Speaker name', 20, 240],
     bodySize: ['Other text', 20, 180],
   };
-  const fontSpacing = {
-    titleSpacing: ['Main title', -4, 30],
-    subtitleSpacing: ['Subtitle / talk title', -3, 24],
-    nameSpacing: ['Speaker name', -3, 18],
-    bodySpacing: ['Other text', -3, 12],
+  const lineSpacing = {
+    titleLineSpacing: ['Main title', 75, 200],
+    subtitleLineSpacing: ['Subtitle / talk title', 75, 200],
+    nameLineSpacing: ['Speaker name', 75, 200],
+    bodyLineSpacing: ['Other text', 75, 200],
   };
   const spacing = {
     titleGap: ['Title to speaker block', 0, 1000],
@@ -66,7 +66,7 @@
         const draft = fresh(id);
         fillStrings(draft.content, saved.content);
         draft.content.speakers.forEach((speaker, index) => fillStrings(speaker, saved.content?.speakers?.[index]));
-        for (const [key, [, min, max]] of Object.entries({...sizes, ...fontSpacing, ...spacing})) {
+        for (const [key, [, min, max]] of Object.entries({...sizes, ...lineSpacing, ...spacing})) {
           const value = saved.settings?.[key];
           if (Number.isFinite(value) && value >= min && value <= max) draft.settings[key] = value;
         }
@@ -247,11 +247,11 @@
   }
 
   function renderLayout() {
-    for (const [title, definitions] of [['Font size', sizes], ['Font spacing', fontSpacing], ['Vertical spacing', spacing]]) {
+    for (const [title, definitions] of [['Font size', sizes], ['Line spacing', lineSpacing], ['Vertical spacing', spacing]]) {
       const group = section(title);
       const grid = el('div', {className: 'control-grid'});
-      if (definitions === fontSpacing) {
-        group.append(el('p', {className: 'layout-help'}, 'Adjust the space between letters.'));
+      if (definitions === lineSpacing) {
+        group.append(el('p', {className: 'layout-help'}, 'Adjust the space between lines. 100% uses the template default.'));
       }
       if (definitions === spacing) {
         group.append(el('p', {className: 'layout-help'}, 'Values use the poster’s 3508 px canvas. Sections move as the text wraps.'));
@@ -260,7 +260,8 @@
         if ((key === 'abstractGap' && state.active !== '3') ||
             (key === 'speakerGap' && state.active === '1') ||
             (key === 'detailsGap' && state.active === '2')) continue;
-        grid.append(rangeField(key, label, min, max, current().settings[key], ' px', {setting: key}));
+        const unit = definitions === lineSpacing ? '%' : ' px';
+        grid.append(rangeField(key, label, min, max, current().settings[key], unit, {setting: key}));
       }
       group.append(grid);
       fields.append(group);

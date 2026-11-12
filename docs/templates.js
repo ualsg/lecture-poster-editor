@@ -27,10 +27,10 @@ const POSTER_TEMPLATES = {
       "lowerGap": 145,
       "detailsGap": 140,
       "subtitleSize": 150,
-      "titleSpacing": 0,
-      "subtitleSpacing": 0,
-      "nameSpacing": 0,
-      "bodySpacing": 0
+      "titleLineSpacing": 100,
+      "subtitleLineSpacing": 100,
+      "nameLineSpacing": 100,
+      "bodyLineSpacing": 100
     },
     "content": {
       "title": "World Heritage Understanding aided with Artificial Intelligence",
@@ -99,10 +99,10 @@ const POSTER_TEMPLATES = {
       "lowerGap": 118,
       "detailsGap": 115,
       "subtitleSize": 100,
-      "titleSpacing": 0,
-      "subtitleSpacing": 0,
-      "nameSpacing": 0,
-      "bodySpacing": 0
+      "titleLineSpacing": 100,
+      "subtitleLineSpacing": 100,
+      "nameLineSpacing": 100,
+      "bodyLineSpacing": 100
     },
     "content": {
       "title": "",
@@ -199,10 +199,10 @@ const POSTER_TEMPLATES = {
       "lowerGap": 51,
       "detailsGap": 85,
       "subtitleSize": 66.675,
-      "titleSpacing": 0,
-      "subtitleSpacing": 0,
-      "nameSpacing": 0,
-      "bodySpacing": 0
+      "titleLineSpacing": 100,
+      "subtitleLineSpacing": 100,
+      "nameLineSpacing": 100,
+      "bodyLineSpacing": 100
     },
     "content": {
       "title": "Rethinking cities in the age of AI",

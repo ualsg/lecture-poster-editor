@@ -9,8 +9,6 @@ const PosterLayout = (() => {
   const bodyFamily = "'Avenir Next Condensed', 'Roboto Condensed', 'Arial Narrow', sans-serif";
   const titleFamily = "Impact, Haettenschweiler, 'Roboto Condensed', 'Arial Narrow', sans-serif";
   const measure = document.createElement('canvas').getContext('2d');
-  const nativeLetterSpacing = 'letterSpacing' in measure;
-  const segmenter = typeof Intl.Segmenter === 'function' ? new Intl.Segmenter() : null;
 
   function svg(tag, attrs = {}, parent) {
     const el = document.createElementNS(SVG, tag);
@@ -73,20 +71,13 @@ const PosterLayout = (() => {
     portrait.setAttribute('filter', `url(#${filterId})`);
   }
 
-  function font(size, {weight = 400, family = bodyFamily, slant = 'normal', letterSpacing = 0} = {}) {
-    return {size, weight, family, slant, letterSpacing};
-  }
-
-  function graphemes(text) {
-    return segmenter ? Array.from(segmenter.segment(text), item => item.segment) : Array.from(text);
+  function font(size, weight = 400, family = bodyFamily, slant = 'normal') {
+    return {size, weight, family, slant};
   }
 
   function widthOf(text, style) {
     measure.font = `${style.slant} ${style.weight} ${style.size}px ${style.family}`;
-    if (nativeLetterSpacing) measure.letterSpacing = `${style.letterSpacing}px`;
-    const width = measure.measureText(text).width;
-    if (nativeLetterSpacing || !style.letterSpacing) return width;
-    return width + graphemes(text).length * style.letterSpacing;
+    return measure.measureText(text).width;
   }
 
   function wrap(runs, maxWidth) {
@@ -126,7 +117,7 @@ const PosterLayout = (() => {
           append(piece, style, wordWidth);
           continue;
         }
-        for (const character of graphemes(piece)) {
+        for (const character of piece) {
           const width = widthOf(character, style);
           if (row.length && rowWidth + width > maxWidth) flush();
           append(character, style, width);
@@ -138,10 +129,11 @@ const PosterLayout = (() => {
   }
 
   function textBlock(parent, runs, options) {
-    const {x, y, width, size, lineHeight = size * 1.2, fill = '#fff',
+    const {x, y, width, size, lineHeight = size * 1.2, lineSpacing = 100, fill = '#fff',
       anchor = 'start', opacity = 1, effect, id} = options;
     if (!runs.some(run => run.text.trim())) return 0;
     const rows = wrap(runs, width);
+    const baselineStep = lineHeight * (lineSpacing / 100);
     const main = runs[0].style;
     const attrs = {
       x, y: y + size * .85, fill, opacity, 'text-anchor': anchor,
@@ -150,34 +142,29 @@ const PosterLayout = (() => {
     };
     if (effect) attrs.filter = `url(#${effect})`;
     if (id) attrs.id = id;
-    if (main.letterSpacing) attrs['letter-spacing'] = `${main.letterSpacing}px`;
     const el = svg('text', attrs, parent);
     el.setAttributeNS('http://www.w3.org/XML/1998/namespace', 'xml:space', 'preserve');
     rows.forEach((row, index) => {
-      const line = svg('tspan', {x, y: y + size * .85 + index * lineHeight}, el);
+      const line = svg('tspan', {x, y: y + size * .85 + index * baselineStep}, el);
       line.setAttributeNS(SODIPODI, 'sodipodi:role', 'line');
       for (const run of row) {
         if (run.style === main) line.append(run.text);
         else {
-          const inline = {'font-family': run.style.family, 'font-size': run.style.size,
-            'font-weight': run.style.weight, 'font-style': run.style.slant};
-          if (run.style.letterSpacing !== main.letterSpacing) {
-            inline['letter-spacing'] = `${run.style.letterSpacing}px`;
-          }
-          svg('tspan', inline, line).textContent = run.text;
+          svg('tspan', {'font-family': run.style.family, 'font-size': run.style.size,
+            'font-weight': run.style.weight, 'font-style': run.style.slant}, line).textContent = run.text;
         }
       }
     });
-    return (rows.length - 1) * lineHeight + size;
+    return (rows.length - 1) * baselineStep + size;
   }
 
-  function agendaBlock(parent, content, y, size, letterSpacing) {
+  function agendaBlock(parent, content, y, size, lineSpacing) {
     const group = svg('g', {id: 'lower-copy'}, parent);
     const start = y;
-    const lineHeight = size * 1.375;
-    const normal = font(size, {weight: 500, letterSpacing});
-    const italic = font(size, {weight: 500, slant: 'italic', letterSpacing});
-    const bold = font(size, {weight: 700, letterSpacing});
+    const lineHeight = size * 1.375 * (lineSpacing / 100);
+    const normal = font(size, 500);
+    const italic = font(size, 500, bodyFamily, 'italic');
+    const bold = font(size, 700);
     for (const source of content.trimEnd().split('\n')) {
       const copy = source.trim();
       if (!copy) {
@@ -205,6 +192,8 @@ const PosterLayout = (() => {
   function makePoster(template, draft) {
     const {id, art, cards} = template;
     const {content, settings: s, photos, portraitEdits} = draft;
+    const {titleLineSpacing = 100, subtitleLineSpacing = 100, nameLineSpacing = 100,
+      bodyLineSpacing = 100} = s;
     const assets = POSTER_ARTWORK[id];
     const singleSpeaker = id === '1';
     const separateHeadlines = id === '2';
@@ -222,32 +211,28 @@ const PosterLayout = (() => {
     image(background, assets.header, 0, 0, WIDTH, art.headerHeight);
     const backdrop = svg('svg', {x: 0, y: art.headerHeight, width: WIDTH, overflow: 'hidden'}, background);
 
-    const headlineStyle = font(s.titleSize, {family: titleFamily, letterSpacing: s.titleSpacing});
-    const subtitleStyle = font(s.subtitleSize, {family: titleFamily, letterSpacing: s.subtitleSpacing});
+    const headlineStyle = font(s.titleSize, 400, titleFamily);
+    const subtitleStyle = font(s.subtitleSize, 400, titleFamily);
     const bodyScale = s.bodySize / template.settings.bodySize;
     const lowerSize = s.lowerSize * bodyScale;
-    const bodyFont = (size, options) => font(size, {...options, letterSpacing: s.bodySpacing});
-    const bodyStyle = bodyFont(s.bodySize);
-    const nameStyle = font(s.nameSize, {
-      weight: singleSpeaker ? 400 : 900,
-      family: singleSpeaker ? titleFamily : bodyFamily,
-      letterSpacing: s.nameSpacing,
-    });
+    const bodyStyle = font(s.bodySize);
+    const nameStyle = font(s.nameSize, singleSpeaker ? 400 : 900, singleSpeaker ? titleFamily : bodyFamily);
     const affiliationSize = template.settings.nameSize * (singleSpeaker ? 2 / 3 : 1);
-    const affiliationStyle = bodyFont(affiliationSize * bodyScale, {weight: 500});
-    const talkStyle = font(s.subtitleSize, {weight: 700, letterSpacing: s.subtitleSpacing});
+    const affiliationStyle = font(affiliationSize * bodyScale, 500);
+    const talkStyle = font(s.subtitleSize, 700);
     let y = art.headerHeight + 84;
     const text = (parent, value, style, opts) => textBlock(parent, [{text: value, style}], {size: style.size, ...opts});
     const headline = (parent, value, key, subtitle, subtitleId) => {
       const h = text(parent, value, headlineStyle, {
         x: 186, y, width: 3145, lineHeight: s.titleSize * (separateHeadlines ? 1.2 : 1.077),
-        effect: 'headline-shadow', id: key,
+        lineSpacing: titleLineSpacing, effect: 'headline-shadow', id: key,
       });
       y += h;
       if (subtitle.trim()) {
         if (h) y += singleSpeaker ? 74 : 35;
         y += text(parent, subtitle, subtitleStyle, {
-          x: 186, y, width: 3145, effect: 'headline-shadow', id: subtitleId,
+          x: 186, y, width: 3145, lineSpacing: subtitleLineSpacing,
+          effect: 'headline-shadow', id: subtitleId,
         });
       }
       if (h || subtitle.trim()) y += s.titleGap;
@@ -255,8 +240,8 @@ const PosterLayout = (() => {
     if (!separateHeadlines) {
       const titles = layer(root, 'Lecture title');
       const labelHeight = text(titles, content.eventLabel,
-        bodyFont(template.settings.titleSize * .385 * bodyScale, {family: titleFamily}),
-        {x: 186, y, width: 3135, id: 'event-label'});
+        font(template.settings.titleSize * .385 * bodyScale, 400, titleFamily),
+        {x: 186, y, width: 3135, lineSpacing: bodyLineSpacing, id: 'event-label'});
       if (labelHeight) y += labelHeight + 36;
       headline(titles, content.title, 'main-title', content.subtitle, 'subtitle');
     }
@@ -283,12 +268,12 @@ const PosterLayout = (() => {
         {text: (name && affiliation ? ', ' : '') + affiliation, style: affiliationStyle},
       ], {x: textX, y: top, width: geom.width,
         size: Math.max(name ? s.nameSize : 0, affiliation ? affiliationStyle.size : 0),
-        id: `speaker-name-${index + 1}`});
+        lineSpacing: name ? nameLineSpacing : bodyLineSpacing, id: `speaker-name-${index + 1}`});
       top += nameHeight;
       if (speaker.talk.trim()) {
         if (nameHeight) top += s.introGap;
         top += text(copy, speaker.talk, talkStyle, {x: textX, y: top, width: geom.width,
-          id: `speaker-talk-${index + 1}`});
+          lineSpacing: subtitleLineSpacing, id: `speaker-talk-${index + 1}`});
         if (speaker.body.trim()) top += s.abstractGap;
       } else if (nameHeight && speaker.body.trim()) {
         top += s.introGap;
@@ -296,7 +281,7 @@ const PosterLayout = (() => {
       top += text(copy, speaker.body, bodyStyle, {
         x: textX, y: top, width: geom.width,
         lineHeight: s.bodySize * (singleSpeaker ? 1.4286 : id === '3' && index === 2 ? 1.1333 : 1.2),
-        opacity: geom.bodyOpacity, id: `speaker-description-${index + 1}`,
+        lineSpacing: bodyLineSpacing, opacity: geom.bodyOpacity, id: `speaker-description-${index + 1}`,
       });
       const [x1, y1, x2, y2] = geom.photo;
       const diameter = Math.min(x2 - x1, y2 - y1);
@@ -316,8 +301,8 @@ const PosterLayout = (() => {
 
     if (content.host.trim()) {
       y += 46;
-      y += text(layer(root, 'Host'), content.host, bodyFont(template.settings.nameSize * bodyScale, {weight: 700}), {
-        x: 3284, y, width: 2950, anchor: 'end', id: 'host',
+      y += text(layer(root, 'Host'), content.host, font(template.settings.nameSize * bodyScale, 700), {
+        x: 3284, y, width: 2950, lineSpacing: bodyLineSpacing, anchor: 'end', id: 'host',
       });
     }
     const heroBottom = y + art.tail;
@@ -330,29 +315,33 @@ const PosterLayout = (() => {
     const lower = layer(root, 'Event information');
     let lowerHeight = 0;
     if (content.lower.trim()) {
-      const style = bodyFont(lowerSize, {weight: 500});
+      const style = font(lowerSize, 500);
       lowerHeight = singleSpeaker
         ? textBlock(lower, [
-          {text: 'Abstract: ', style: bodyFont(lowerSize, {weight: 700})}, {text: content.lower, style},
+          {text: 'Abstract: ', style: font(lowerSize, 700)}, {text: content.lower, style},
         ], {x: 290, y, width: 3034, size: lowerSize, lineHeight: lowerSize * 4 / 3,
-          fill: '#323232', id: 'lower-copy'})
-        : agendaBlock(lower, content.lower, y, lowerSize, s.bodySpacing);
+          lineSpacing: bodyLineSpacing, fill: '#323232', id: 'lower-copy'})
+        : agendaBlock(lower, content.lower, y, lowerSize, bodyLineSpacing);
       svg('rect', {x: 175, y, width: 23, height: lowerHeight, fill: '#323232'}, lower);
       y += lowerHeight + s.detailsGap;
     }
 
     const detailsY = y;
     const detailSize = 66.67 * bodyScale;
-    const detailFont = bodyFont(detailSize, {weight: 500});
-    const detailBold = bodyFont(detailSize, {weight: 700});
-    const detailOptions = {x: 276, width: 2360, size: detailSize, fill: '#323232', lineHeight: 96.5 * bodyScale};
+    const detailFont = font(detailSize, 500);
+    const detailBold = font(detailSize, 700);
+    const detailOptions = {x: 276, width: 2360, size: detailSize, fill: '#323232',
+      lineHeight: 96.5 * bodyScale, lineSpacing: bodyLineSpacing};
+    const detailGap = (detailSize + 30) * (bodyLineSpacing / 100) - detailSize;
+    let detailHeight = 0;
     for (const [label, value, key] of [['Date/time: ', content.date, 'date'], ['Venue: ', content.venue, 'venue']]) {
       if (value.trim()) {
         y += textBlock(lower, [{text: label, style: detailBold}, {text: value, style: detailFont}],
-          {...detailOptions, y, id: key}) + 30;
+          {...detailOptions, y, id: key});
+        detailHeight = y - detailsY;
+        y += detailGap;
       }
     }
-    const detailHeight = Math.max(0, y - detailsY - 30);
     if (detailHeight) svg('rect', {x: 175, y: detailsY, width: 23, height: detailHeight, fill: '#323232'}, lower);
     const [lx, ly, lx2, ly2] = art.logo;
     image(lower, assets.nus, lx, detailsY, lx2 - lx, ly2 - ly);
