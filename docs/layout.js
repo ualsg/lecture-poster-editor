@@ -261,7 +261,7 @@ const PosterLayout = (() => {
       const copy = svg('g', {}, card);
       const textX = geom.x;
       let top = cardY + geom.padding[0];
-      const name = speaker.name.trim();
+      const name = PosterEvent.speakerName(speaker);
       const affiliation = speaker.affiliation.trim();
       const nameHeight = textBlock(copy, [
         {text: name, style: nameStyle},
@@ -334,7 +334,8 @@ const PosterLayout = (() => {
       lineHeight: 96.5 * bodyScale, lineSpacing: bodyLineSpacing};
     const detailGap = (detailSize + 30) * (bodyLineSpacing / 100) - detailSize;
     let detailHeight = 0;
-    for (const [label, value, key] of [['Date/time: ', content.date, 'date'], ['Venue: ', content.venue, 'venue']]) {
+    const eventSchedule = PosterEvent.schedule(content);
+    for (const [label, value, key] of [['Date/time: ', eventSchedule, 'date'], ['Venue: ', content.venue, 'venue']]) {
       if (value.trim()) {
         y += textBlock(lower, [{text: label, style: detailBold}, {text: value, style: detailFont}],
           {...detailOptions, y, id: key});

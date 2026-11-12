@@ -38,7 +38,7 @@
   function fresh(id) {
     const {content, settings} = POSTER_TEMPLATES[id];
     return {
-      content: duplicate(content),
+      content: {...duplicate(content), legacyDate: ''},
       settings: {...settings},
       photos: content.speakers.map(() => null),
       portraitEdits: content.speakers.map(() => Object.fromEntries(
@@ -65,7 +65,12 @@
         if (!saved) continue;
         const draft = fresh(id);
         fillStrings(draft.content, saved.content);
-        draft.content.speakers.forEach((speaker, index) => fillStrings(speaker, saved.content?.speakers?.[index]));
+        if (typeof saved.content?.date === 'string' && typeof saved.content.time !== 'string') {
+          Object.assign(draft.content, PosterEvent.migrateSchedule(saved.content.date));
+        }
+        draft.content.speakers.forEach((speaker, index) => {
+          fillStrings(speaker, PosterEvent.migrateSpeaker(saved.content?.speakers?.[index]));
+        });
         for (const [key, [, min, max]] of Object.entries({...sizes, ...lineSpacing, ...spacing})) {
           const value = saved.settings?.[key];
           if (Number.isFinite(value) && value >= min && value <= max) draft.settings[key] = value;
@@ -208,7 +213,7 @@
     const speakers = section('Speakers');
     content.speakers.forEach((person, index) => {
       const item = el('details', {open: index === 0});
-      const summary = el('summary', {}, person.name || `Speaker ${index + 1}`);
+      const summary = el('summary', {}, PosterEvent.speakerName(person) || `Speaker ${index + 1}`);
       summary.id = `speaker-summary-${index}`;
       item.append(summary);
       const group = el('div', {className: 'speaker-fields'});
@@ -216,6 +221,7 @@
         copyField(group, 'Lecture title', 'headline', person.headline, 2, index);
         copyField(group, 'Subtitle', 'subtitle', person.subtitle, 2, index);
       }
+      copyField(group, 'Speaker title', 'speakerTitle', person.speakerTitle, 0, index);
       copyField(group, 'Name', 'name', person.name, 0, index);
       copyField(group, 'Affiliation', 'affiliation', person.affiliation, 0, index);
       if (state.active === '3') copyField(group, 'Talk title', 'talk', person.talk, 2, index);
@@ -241,7 +247,17 @@
     if (state.active === '1') copyField(details, 'Abstract', 'lower', content.lower, 5);
     if (state.active === '3') copyField(details, 'Agenda', 'lower', content.lower, 5);
     if (state.active !== '1') copyField(details, 'Host line', 'host', content.host);
-    copyField(details, 'Date and time', 'date', content.date);
+    const schedule = el('div', {className: 'control-grid schedule-fields'});
+    for (const [key, label] of [['date', 'Date'], ['time', 'Time']]) {
+      const input = el('input', {id: `copy-poster-${key}`, type: key, value: content[key]});
+      input.dataset.copy = key;
+      schedule.append(field(label, input));
+    }
+    details.append(schedule);
+    if (content.legacyDate) {
+      details.append(el('p', {id: 'legacy-schedule', className: 'layout-help'},
+        `Previous schedule: ${content.legacyDate}`));
+    }
     copyField(details, 'Venue', 'venue', content.venue, 2);
     fields.append(details);
   }
@@ -348,7 +364,14 @@
     } else if (copy) {
       const record = speaker === undefined ? draft.content : draft.content.speakers[speaker];
       record[copy] = target.value;
-      if (copy === 'name') byId(`speaker-summary-${speaker}`).textContent = target.value || `Speaker ${Number(speaker) + 1}`;
+      if (copy === 'name' || copy === 'speakerTitle') {
+        byId(`speaker-summary-${speaker}`).textContent =
+          PosterEvent.speakerName(record) || `Speaker ${Number(speaker) + 1}`;
+      }
+      if (copy === 'date' || copy === 'time') {
+        draft.content.legacyDate = '';
+        byId('legacy-schedule')?.remove();
+      }
     } else return;
     update();
   });
@@ -396,22 +419,25 @@
   byId('download').addEventListener('click', () => {
     const svg = new XMLSerializer().serializeToString(currentPoster());
     download(new Blob(['<?xml version="1.0" encoding="UTF-8"?>\n', svg],
-      {type: 'image/svg+xml;charset=utf-8'}), `ual-lecture-poster-${state.active}-speaker.svg`);
+      {type: 'image/svg+xml;charset=utf-8'}), `${PosterEvent.filename(current().content)}.svg`);
   });
 
   byId('download-pdf').addEventListener('click', async event => {
     const button = event.currentTarget;
     const label = button.querySelector('span');
     const message = byId('export-status');
-    const filename = `ual-lecture-poster-${state.active}-speaker.pdf`;
+    const name = PosterEvent.filename(current().content);
     button.disabled = true;
     label.textContent = 'Preparing PDF…';
     message.hidden = true;
     try {
-      download(await PosterPdf.fromSvg(currentPoster()), filename);
+      download(await PosterPdf.fromSvg(currentPoster()), `${name}.pdf`);
     } catch {
       message.textContent = 'Choose Save as PDF in the print dialog.';
       message.hidden = false;
+      const originalTitle = document.title;
+      document.title = name;
+      window.addEventListener('afterprint', () => { document.title = originalTitle; }, {once: true});
       window.print();
     } finally {
       button.disabled = false;
